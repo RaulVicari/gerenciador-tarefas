@@ -1,17 +1,19 @@
-
 <?php
 require_once "conexao.php";
 
-// CADASTRAR TAREFA
+function limpar($valor) {
+    return htmlspecialchars($valor ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+// CADASTRAR
 if (isset($_POST['cadastrar'])) {
     $titulo = trim($_POST['titulo']);
     $descricao = trim($_POST['descricao']);
 
     if ($titulo !== "") {
-        $sql = "INSERT INTO tarefas (titulo, descricao)
-                VALUES (?, ?)";
-
-        $stmt = $pdo->prepare($sql);
+        $stmt = $pdo->prepare(
+            "INSERT INTO tarefas (titulo, descricao) VALUES (?, ?)"
+        );
         $stmt->execute([$titulo, $descricao]);
     }
 
@@ -19,67 +21,29 @@ if (isset($_POST['cadastrar'])) {
     exit;
 }
 
-// CONCLUIR TAREFA
+// CONCLUIR
 if (isset($_POST['concluir'])) {
-    $id = $_POST['id'];
-
-    $sql = "UPDATE tarefas
-            SET status = 'Concluída'
-            WHERE id = ?";
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$id]);
+    $stmt = $pdo->prepare(
+        "UPDATE tarefas SET status = 'Concluída' WHERE id = ?"
+    );
+    $stmt->execute([$_POST['id']]);
 
     header("Location: index.php");
     exit;
 }
 
-// EXCLUIR TAREFA
+// EXCLUIR
 if (isset($_POST['excluir'])) {
-    $id = $_POST['id'];
-
     $stmt = $pdo->prepare(
         "DELETE FROM tarefas WHERE id = ?"
     );
-
-    $stmt->execute([$id]);
-
-    header("Location: index.php");
-    exit;
-}
-
-// EDITAR TAREFA
-if (isset($_POST['editar'])) {
-    $id = $_POST['id'];
-    $titulo = trim($_POST['titulo']);
-    $descricao = trim($_POST['descricao']);
-
-    if ($titulo !== "") {
-        $sql = "UPDATE tarefas
-                SET titulo = ?, descricao = ?
-                WHERE id = ?";
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$titulo, $descricao, $id]);
-    }
+    $stmt->execute([$_POST['id']]);
 
     header("Location: index.php");
     exit;
 }
 
-// BUSCAR TAREFA PARA EDIÇÃO
-$tarefaEdicao = null;
-
-if (isset($_GET['editar'])) {
-    $stmt = $pdo->prepare(
-        "SELECT * FROM tarefas WHERE id = ?"
-    );
-
-    $stmt->execute([$_GET['editar']]);
-    $tarefaEdicao = $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
-// LISTAR TAREFAS
+// LISTAR
 $tarefas = $pdo->query(
     "SELECT * FROM tarefas ORDER BY id DESC"
 )->fetchAll(PDO::FETCH_ASSOC);
@@ -100,102 +64,169 @@ foreach ($tarefas as $tarefa) {
 
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
-    <title>Gerenciador de Tarefas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TaskFlow | Gerenciador de Tarefas</title>
+
+    <link rel="stylesheet" href="estilizacao.css">
 </head>
 
 <body>
 
-<h1>Gerenciador de Tarefas</h1>
+<div class="container">
 
-<h3>Total: <?= $total ?></h3>
-<h3>Concluídas: <?= $concluidas ?></h3>
-<h3>Pendentes: <?= $pendentes ?></h3>
+    <header>
+        <h1>TaskFlow</h1>
+        <p>Organize suas tarefas e acompanhe seu progresso.</p>
+    </header>
 
-<hr>
+    <section class="stats">
 
-<?php if ($tarefaEdicao): ?>
+        <div class="stat">
+            <p>Total de tarefas</p>
+            <h2 class="blue"><?= $total ?></h2>
+        </div>
 
-    <h2>Editar tarefa</h2>
+        <div class="stat">
+            <p>Concluídas</p>
+            <h2 class="green"><?= $concluidas ?></h2>
+        </div>
 
-    <form method="POST">
-        <input type="hidden" name="id"
-               value="<?= $tarefaEdicao['id'] ?>">
+        <div class="stat">
+            <p>Pendentes</p>
+            <h2 class="orange"><?= $pendentes ?></h2>
+        </div>
 
-        <input type="text" name="titulo"
-               value="<?= htmlspecialchars($tarefaEdicao['titulo']) ?>"
-               required>
+    </section>
 
-        <textarea name="descricao"><?= htmlspecialchars($tarefaEdicao['descricao'] ?? '') ?></textarea>
+    <section class="panel">
 
-        <button type="submit" name="editar">
-            Salvar alterações
-        </button>
-    </form>
+        <h2>+ Nova tarefa</h2>
 
-    <a href="index.php">Cancelar</a>
+        <form method="POST">
 
-<?php else: ?>
+            <input
+                type="text"
+                name="titulo"
+                placeholder="Digite o título da tarefa"
+                maxlength="150"
+                required
+            >
 
-    <h2>Nova tarefa</h2>
+            <textarea
+                name="descricao"
+                placeholder="Descreva sua tarefa..."
+            ></textarea>
 
-    <form method="POST">
-        <input type="text" name="titulo"
-               placeholder="Nome da tarefa" required>
-
-        <textarea name="descricao"
-                  placeholder="Descrição"></textarea>
-
-        <button type="submit" name="cadastrar">
-            Cadastrar
-        </button>
-    </form>
-
-<?php endif; ?>
-
-<hr>
-
-<h2>Minhas tarefas</h2>
-
-<?php foreach ($tarefas as $tarefa): ?>
-
-    <div>
-        <h3>
-            <?= htmlspecialchars($tarefa['titulo']) ?>
-        </h3>
-
-        <p>
-            <?= htmlspecialchars($tarefa['descricao'] ?? '') ?>
-        </p>
-
-        <p>Status: <?= $tarefa['status'] ?></p>
-
-        <a href="index.php?editar=<?= $tarefa['id'] ?>">
-            Editar
-        </a>
-
-        <form method="POST" style="display:inline">
-            <input type="hidden" name="id"
-                   value="<?= $tarefa['id'] ?>">
-
-            <?php if ($tarefa['status'] == 'Pendente'): ?>
-                <button type="submit" name="concluir">
-                    Concluir
-                </button>
-            <?php endif; ?>
-
-            <button type="submit" name="excluir"
-                    onclick="return confirm('Deseja excluir?')">
-                Excluir
+            <button class="cadastrar" type="submit" name="cadastrar">
+                Adicionar tarefa
             </button>
+
         </form>
 
-    </div>
+    </section>
 
-    <hr>
+    <section class="panel">
 
-<?php endforeach; ?>
+        <h2>Minhas tarefas (<?= $total ?>)</h2>
+
+        <?php if ($total == 0): ?>
+
+            <div class="vazio">
+                <h3>Nenhuma tarefa cadastrada</h3>
+                <p>Adicione sua primeira tarefa acima!</p>
+            </div>
+
+        <?php else: ?>
+
+            <?php foreach ($tarefas as $tarefa): ?>
+
+                <div class="tarefa">
+
+                    <div>
+                        <h3><?= limpar($tarefa['titulo']) ?></h3>
+
+                        <p><?= limpar($tarefa['descricao']) ?></p>
+
+                        <?php if ($tarefa['status'] == 'Concluída'): ?>
+
+                            <span class="status concluida">
+                                Concluída
+                            </span>
+
+                        <?php else: ?>
+
+                            <span class="status pendente">
+                                Pendente
+                            </span>
+
+                        <?php endif; ?>
+
+                    </div>
+
+                    <div class="acoes">
+
+                        <?php if ($tarefa['status'] == 'Pendente'): ?>
+
+                            <form method="POST">
+
+                                <input
+                                    type="hidden"
+                                    name="id"
+                                    value="<?= $tarefa['id'] ?>"
+                                >
+
+                                <button
+                                    class="concluir"
+                                    type="submit"
+                                    name="concluir"
+                                >
+                                    Concluir
+                                </button>
+
+                            </form>
+
+                        <?php endif; ?>
+
+                        <form
+                            method="POST"
+                            onsubmit="return confirm('Deseja excluir esta tarefa?')"
+                        >
+
+                            <input
+                                type="hidden"
+                                name="id"
+                                value="<?= $tarefa['id'] ?>"
+                            >
+
+                            <button
+                                class="excluir"
+                                type="submit"
+                                name="excluir"
+                            >
+                                Excluir
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            <?php endforeach; ?>
+
+        <?php endif; ?>
+
+    </section>
+
+    <footer>
+        TaskFlow — Sistema de Gerenciamento de Tarefas
+    </footer>
+
+</div>
 
 </body>
 </html>
