@@ -1,4 +1,3 @@
-
 <?php
 $host = "localhost";
 $banco = "gerenciador_tarefas";
